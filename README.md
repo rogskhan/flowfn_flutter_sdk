@@ -33,18 +33,23 @@ dependencies:
 ```dart
 import 'package:flowfn_sdk/flowfn_sdk.dart';
 
-// Initialize API client
+// Initialize API client with required app credentials and environment
 final apiClient = ApiClient(
-  baseUrl: 'https://api.example.com', // Optional, defaults to localhost:3000
+  appCode: 'your-app-code',        // Required
+  apiKey: 'your-api-key',          // Required
+  environment: Environment.local,  // Required: local, sandbox, or production
+  // baseUrl is optional - defaults to environment-specific URL
 );
-
-// Set app authentication
-apiClient.setAppAuth('your-app-code', 'your-api-key');
 
 // Initialize services
 final workflowService = WorkflowService(apiClient);
 final authService = AuthService(apiClient);
 ```
+
+**Note**: App credentials (`appCode` and `apiKey`) are now required in the constructor. The SDK automatically sets the base URL based on the environment:
+- `Environment.local` → `http://localhost:3000`
+- `Environment.sandbox` → `https://sandbox-api.flowfn.com`
+- `Environment.production` → `https://api.flowfn.com`
 
 ### Triggering a Workflow
 
@@ -84,9 +89,12 @@ final signupStatus = await authService.signup(
 
 ### ApiClient
 
-- `setAppAuth(String appCode, String apiKey)` - Set app authentication headers
+- **Constructor**: `ApiClient({required appCode, required apiKey, required environment, baseUrl?})` - Create client with required credentials
 - `setUserAuth(String token)` - Set user authentication token
+- `clearUserAuth()` - Clear user authentication token
 - `request(HttpMethod method, String path, ...)` - Make HTTP request
+
+**Note**: `setAppAuth()` and `clearAppAuth()` are deprecated. App credentials are now required in the constructor.
 
 ### WorkflowService
 
@@ -114,15 +122,28 @@ final signupStatus = await authService.signup(
 
 The SDK uses `AppConfig` for default settings:
 
-- `baseUrl`: API base URL (default: `http://localhost:3000`)
+- **Environment-based base URLs**:
+  - `Environment.local` → `http://localhost:3000`
+  - `Environment.sandbox` → `https://sandbox-api.flowfn.com`
+  - `Environment.production` → `https://api.flowfn.com`
 - `pollIntervalSeconds`: Polling interval (default: 2 seconds)
 - `maxPollTimeoutSeconds`: Maximum polling timeout (default: 120 seconds / 2 minutes)
 - `requestTimeout`: HTTP request timeout (default: 30 seconds)
 
-You can override the base URL when creating `ApiClient`:
+**Required Parameters**:
+- `appCode`: Your application code (required)
+- `apiKey`: Your API key (required)
+- `environment`: Environment enum (`Environment.local`, `Environment.sandbox`, or `Environment.production`)
+
+You can optionally override the base URL when creating `ApiClient`:
 
 ```dart
-final apiClient = ApiClient(baseUrl: 'https://api.example.com');
+final apiClient = ApiClient(
+  appCode: 'your-app-code',
+  apiKey: 'your-api-key',
+  environment: Environment.production,
+  baseUrl: 'https://custom-api.example.com', // Optional override
+);
 ```
 
 ## License

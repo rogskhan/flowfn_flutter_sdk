@@ -1,10 +1,28 @@
+/// Environment enum for SDK configuration
+enum Environment {
+  local,
+  sandbox,
+  production,
+}
+
+/// Configuration class for FlowFn SDK
 class AppConfig {
-  // Base URL for the flowfn-engine API
-  // This should be configured based on your environment
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:3000',
-  );
+  // Base URLs for different environments
+  static const String localBaseUrl = 'http://localhost:3000';
+  static const String sandboxBaseUrl = 'https://sandbox-api.flowfn.com';
+  static const String productionBaseUrl = 'https://api.flowfn.com';
+  
+  // Get base URL based on environment
+  static String getBaseUrl(Environment environment) {
+    switch (environment) {
+      case Environment.local:
+        return localBaseUrl;
+      case Environment.sandbox:
+        return sandboxBaseUrl;
+      case Environment.production:
+        return productionBaseUrl;
+    }
+  }
   
   // Polling configuration
   static const int pollIntervalSeconds = 2;
