@@ -1,6 +1,6 @@
 name: flowfn_sdk
 description: A Flutter SDK for interacting with the FlowFn workflow engine API
-version: 1.0.0
+version: 1.0.1
 publish_to: 'none'
 
 environment:
