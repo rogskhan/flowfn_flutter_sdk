@@ -9,9 +9,9 @@ class ApiClient {
   final Map<String, String> defaultHeaders;
   final String appCode;
   final String apiKey;
-  
+
   /// Create an ApiClient with required app credentials and environment
-  /// 
+  ///
   /// [appCode] - Your application code (required)
   /// [apiKey] - Your API key (required)
   /// [environment] - Environment (sandbox or production) to determine base URL
@@ -64,8 +64,15 @@ class ApiClient {
     Map<String, String>? headers,
     Map<String, String>? queryParameters,
   }) async {
-    final uri = Uri.parse(baseUrl).replace(
-      path: path,
+    // Ensure path starts with /
+    final normalizedPath = path.startsWith('/') ? path : '/$path';
+
+    // Construct URI - handle baseUrl with or without trailing slash
+    final baseUri = Uri.parse(baseUrl);
+    final uri = baseUri.replace(
+      path: baseUri.path.isEmpty || baseUri.path == '/'
+          ? normalizedPath
+          : '${baseUri.path}$normalizedPath',
       queryParameters: queryParameters,
     );
 
@@ -74,6 +81,16 @@ class ApiClient {
       ...defaultHeaders,
       ...?headers,
     };
+
+    // Debug logging (can be removed in production)
+    if (baseUrl.contains('localhost') || baseUrl.contains('127.0.0.1')) {
+      print(
+          '[ApiClient] Request: ${method.toString().split('.').last.toUpperCase()} $uri');
+      print('[ApiClient] Headers: ${requestHeaders.keys.join(', ')}');
+      if (body != null) {
+        print('[ApiClient] Body: ${jsonEncode(body)}');
+      }
+    }
 
     http.Response response;
 
@@ -118,17 +135,50 @@ class ApiClient {
           break;
       }
 
+      // Debug response
+      if (baseUrl.contains('localhost') || baseUrl.contains('127.0.0.1')) {
+        print(
+            '[ApiClient] Response: ${response.statusCode} ${response.reasonPhrase}');
+      }
+
       return response;
     } catch (e) {
-      if (e is http.ClientException || e.toString().contains('TimeoutException')) {
-        throw ApiException('Network error: ${e.toString()}', 0);
+      // Enhanced error handling for connection issues
+      if (baseUrl.contains('localhost') || baseUrl.contains('127.0.0.1')) {
+        print('[ApiClient] Error: $e');
+        print('[ApiClient] Error type: ${e.runtimeType}');
+      }
+
+      if (e is http.ClientException) {
+        final errorMsg = e.message;
+        if (errorMsg.contains('Connection failed') ||
+            errorMsg.contains('Operation not permitted') ||
+            errorMsg.contains('SocketException')) {
+          throw ApiException(
+            'Cannot connect to server at $baseUrl\n'
+            'Request was: ${method.toString().split('.').last.toUpperCase()} $uri\n'
+            'Error: $errorMsg\n\n'
+            'Troubleshooting:\n'
+            '1. Verify server is running: curl http://127.0.0.1:3000/health\n'
+            '2. Check macOS network permissions: System Settings > Privacy & Security > Network\n'
+            '3. Ensure no firewall is blocking localhost connections\n'
+            '4. Try restarting the Flutter app to refresh network permissions',
+            0,
+          );
+        }
+        throw ApiException('Network error: $errorMsg', 0);
+      }
+      if (e.toString().contains('TimeoutException')) {
+        throw ApiException(
+            'Request timeout: Server did not respond in time', 0);
       }
       rethrow;
     }
   }
 
   /// Handle response and throw appropriate exceptions
-  T handleResponse<T>(http.Response response, T Function(Map<String, dynamic>) parser) {
+  T handleResponse<T>(
+      http.Response response, T Function(Map<String, dynamic>) parser) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -158,4 +208,3 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException: $message (status: $statusCode)';
 }
-

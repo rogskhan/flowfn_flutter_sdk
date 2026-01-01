@@ -8,10 +8,11 @@ enum Environment {
 /// Configuration class for FlowFn SDK
 class AppConfig {
   // Base URLs for different environments
-  static const String localBaseUrl = 'http://localhost:3000';
+  // Using 127.0.0.1 instead of localhost to avoid macOS network permission issues
+  static const String localBaseUrl = 'http://127.0.0.1:3000';
   static const String sandboxBaseUrl = 'https://sandbox-api.flowfn.com';
   static const String productionBaseUrl = 'https://api.flowfn.com';
-  
+
   // Get base URL based on environment
   static String getBaseUrl(Environment environment) {
     switch (environment) {
@@ -23,12 +24,11 @@ class AppConfig {
         return productionBaseUrl;
     }
   }
-  
+
   // Polling configuration
   static const int pollIntervalSeconds = 2;
   static const int maxPollTimeoutSeconds = 120; // 2 minutes
-  
+
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 30);
 }
-
