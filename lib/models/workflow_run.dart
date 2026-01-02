@@ -167,95 +167,36 @@ class WorkflowRunTask {
 
 class WorkflowRun {
   final String id;
-  final String code;
-  final String workflowId;
-  final String teamId;
-  final int workflowVersion;
   final WorkflowRunStatus status;
-  final WorkflowRunTrigger trigger;
-  final String queuedAt;
-  final String? startedAt;
-  final String? finishedAt;
-  final int durationMs;
-  final double serverUsageGbHours;
-  final double memoryGbAvg;
-  final int aiTokensUsed;
-  final int platformCallCount;
-  final int? userTokensConsumed;
   final List<WorkflowRunTask> tasks;
-  final List<WorkflowRunLog> logs;
   final dynamic result;
   final dynamic error;
   final Map<String, dynamic> context;
-  final Map<String, dynamic> metadata;
-  final String? createdBy;
-  final String? updatedBy;
-  final String createdAt;
-  final String updatedAt;
+  final dynamic outputs; // Outputs from last task (for simplified response)
 
   WorkflowRun({
     required this.id,
-    required this.code,
-    required this.workflowId,
-    required this.teamId,
-    required this.workflowVersion,
     required this.status,
-    required this.trigger,
-    required this.queuedAt,
-    this.startedAt,
-    this.finishedAt,
-    required this.durationMs,
-    required this.serverUsageGbHours,
-    required this.memoryGbAvg,
-    required this.aiTokensUsed,
-    required this.platformCallCount,
-    this.userTokensConsumed,
-    required this.tasks,
-    required this.logs,
+    this.tasks = const [],
     this.result,
     this.error,
-    required this.context,
-    required this.metadata,
-    this.createdBy,
-    this.updatedBy,
-    required this.createdAt,
-    required this.updatedAt,
+    this.context = const {},
+    this.outputs,
   });
 
   factory WorkflowRun.fromJson(Map<String, dynamic> json) {
     return WorkflowRun(
       id: json['_id'] as String,
-      code: json['code'] as String,
-      workflowId: json['workflow_id'] as String,
-      teamId: json['team_id'] as String,
-      workflowVersion: json['workflow_version'] as int? ?? 1,
       status: _parseStatus(json['status'] as String),
-      trigger: WorkflowRunTrigger.fromJson(json['trigger'] as Map<String, dynamic>),
-      queuedAt: json['queued_at'] as String,
-      startedAt: json['started_at'] as String?,
-      finishedAt: json['finished_at'] as String?,
-      durationMs: json['duration_ms'] as int? ?? -1,
-      serverUsageGbHours: (json['server_usage_gb_hours'] as num?)?.toDouble() ?? 0.0,
-      memoryGbAvg: (json['memory_gb_avg'] as num?)?.toDouble() ?? 0.0,
-      aiTokensUsed: json['ai_tokens_used'] as int? ?? 0,
-      platformCallCount: json['platform_call_count'] as int? ?? 0,
-      userTokensConsumed: json['user_tokens_consumed'] as int?,
       tasks: (json['tasks'] as List<dynamic>?)
               ?.map((e) => WorkflowRunTask.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      logs: (json['logs'] as List<dynamic>?)
-              ?.map((e) => WorkflowRunLog.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       result: json['result'],
       error: json['error'],
       context: (json['context'] as Map<String, dynamic>?) ?? {},
-      metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},
-      createdBy: json['created_by'] as String?,
-      updatedBy: json['updated_by'] as String?,
-      createdAt: json['createdAt'] as String,
-      updatedAt: json['updatedAt'] as String,
+      outputs:
+          json['outputs'], // Outputs from last task (for simplified response)
     );
   }
 
@@ -278,8 +219,9 @@ class WorkflowRun {
     }
   }
 
-  bool get isComplete => status == WorkflowRunStatus.succeeded || status == WorkflowRunStatus.failed;
+  bool get isComplete =>
+      status == WorkflowRunStatus.succeeded ||
+      status == WorkflowRunStatus.failed;
   bool get isRunning => status == WorkflowRunStatus.running;
   bool get isQueued => status == WorkflowRunStatus.queued;
 }
-
