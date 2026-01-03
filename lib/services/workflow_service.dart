@@ -10,16 +10,35 @@ class WorkflowService {
   WorkflowService(this.apiClient);
 
   /// Trigger a workflow via API
-  /// 
+  ///
   /// [workflowCode] - The workflow code to trigger
   /// [method] - HTTP method (GET, POST, PUT, PATCH)
   /// [inputs] - Input data for the workflow (will be sent as request body, excluding 'code')
-  /// 
-  /// Returns a WorkflowTriggerResponse with run_id and run_code
-  Future<WorkflowTriggerResponse> triggerWorkflow({
+  /// [executionType] - Expected execution type: 'sync' or 'async'.
+  ///                   Note: The actual behavior is determined by the workflow's execution_type.
+  ///                   This parameter is for documentation/clarity only (default: 'async')
+  ///
+  /// Returns:
+  /// - For sync workflows: WorkflowRun with the completed result (status, outputs, result, context)
+  /// - For async workflows: WorkflowTriggerResponse with run_id and run_code
+  ///
+  /// The response type is automatically detected based on the API response format.
+  /// Use `is` or `runtimeType` to check the return type:
+  /// ```dart
+  /// final result = await triggerWorkflow(...);
+  /// if (result is WorkflowRun) {
+  ///   // Sync workflow - result is available immediately
+  ///   print('Status: ${result.status}');
+  /// } else if (result is WorkflowTriggerResponse) {
+  ///   // Async workflow - use runId to poll for results
+  ///   final run = await awaitWorkflowResult(runId: result.runId!);
+  /// }
+  /// ```
+  Future<dynamic> triggerWorkflow({
     required String workflowCode,
     required HttpMethod method,
     Map<String, dynamic>? inputs,
+    String executionType = 'async',
   }) async {
     // Prepare body - include code and other inputs
     final body = <String, dynamic>{
@@ -34,17 +53,30 @@ class WorkflowService {
       queryParameters: method == HttpMethod.get ? {'code': workflowCode} : null,
     );
 
-    return apiClient.handleResponse<WorkflowTriggerResponse>(
+    // Handle response - automatically detect sync vs async format
+    // Sync workflows return: { item: { _id, status, outputs, result, context } }
+    // Async workflows return: { message, workflow_id, trigger_id, run_id, run_code }
+    return apiClient.handleResponse<dynamic>(
       response,
-      (json) => WorkflowTriggerResponse.fromJson(json),
+      (json) {
+        // Check if response has 'item' field (sync workflow response format)
+        if (json.containsKey('item') && json['item'] is Map<String, dynamic>) {
+          // Sync workflow: return WorkflowRun directly from the item
+          final item = json['item'] as Map<String, dynamic>;
+          return WorkflowRun.fromJson(item);
+        } else {
+          // Async workflow: return WorkflowTriggerResponse
+          return WorkflowTriggerResponse.fromJson(json);
+        }
+      },
     );
   }
 
   /// Await workflow run completion by polling
-  /// 
+  ///
   /// [runId] - The workflow run ID or code
   /// [maxTimeoutSeconds] - Maximum time to wait (default: 120 seconds / 2 minutes)
-  /// 
+  ///
   /// Returns the completed WorkflowRun or throws an exception on timeout
   Future<WorkflowRun> awaitWorkflowResult({
     required String runId,
@@ -86,7 +118,8 @@ class WorkflowService {
         return run;
       } catch (e) {
         // If run not found, might be a timing issue, wait and retry
-        if (e.toString().contains('not found') || e.toString().contains('404')) {
+        if (e.toString().contains('not found') ||
+            e.toString().contains('404')) {
           await Future.delayed(pollInterval);
           continue;
         }
@@ -112,4 +145,3 @@ class WorkflowService {
     );
   }
 }
-
